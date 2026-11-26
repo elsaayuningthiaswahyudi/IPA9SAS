@@ -120,9 +120,44 @@ button, .btn-primary, .btn-secondary, .btn-outline-sm, .btn-danger-sm {
   background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
   color: #fff;
   border-radius: 18px;
-  padding: 28px 32px;
+  padding: 24px 28px;
   margin-bottom: 24px;
   box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.hero-content {
+  flex: 1;
+}
+
+.hero-welcome-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 12px 16px 14px;
+  text-align: center;
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.25);
+  max-width: 290px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.hero-welcome-card img {
+  width: 100%;
+  max-height: 185px;
+  object-fit: contain;
+  display: block;
+  margin: 0 auto 6px;
+}
+
+.hero-welcome-text {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1e3a8a;
+  letter-spacing: 0.2px;
 }
 
 .hero-badge {
@@ -1164,6 +1199,9 @@ button, .btn-primary, .btn-secondary, .btn-outline-sm, .btn-danger-sm {
 }
 
 @media (max-width: 960px) {
+  .exam-hero { flex-direction: column; text-align: center; }
+  .hero-chips { justify-content: center; }
+  .hero-welcome-card { max-width: 320px; }
   .login-grid { grid-template-columns: 1fr; }
   .exam-workspace { grid-template-columns: 1fr; }
   .exam-sidebar { position: static; }
