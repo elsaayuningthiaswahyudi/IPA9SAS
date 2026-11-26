@@ -1,4 +1,4 @@
-import { naturalAlarm } from "./alarm.js";
+import { naturalAlarm } from "./alarm.js?v=20261126d";
 import { CameraProctor } from "./camera.js";
 
 const STORAGE_KEY = "sas_ipa9_active_session_v1";
@@ -290,8 +290,10 @@ async function handleLoginSubmit(e) {
     return;
   }
 
-  // Unlock audio context right inside user gesture so alarm works automatically later
-  naturalAlarm.ensureContext();
+  // Stop any test preview and unlock audio + <audio> pool right inside user gesture
+  naturalAlarm.stop();
+  els.btnTestAlarm.textContent = "🔊 Uji Alarm";
+  naturalAlarm.unlockFromGesture();
 
   // Ensure camera is active before entering exam
   if (!proctor.isActive()) {
@@ -591,16 +593,16 @@ function handleExitViolation(reason) {
     return;
   }
 
-  // 1st or 2nd violation -> Continuous natural alarm + blocking warning overlay
+  // 1st or 2nd violation -> Continuous siren + human voice warning + blocking overlay
   naturalAlarm.startContinuous(vNum);
   els.overlayVCount.textContent = String(vNum);
   els.violationTitle.textContent =
-    vNum === 2 ? "PERINGATAN TERAKHIR!" : "PERINGATAN PELANGGARAN!";
-  els.violationMessage.textContent = `Terdeteksi: ${reason}. Alarm peringatan berbunyi secara otomatis.`;
+    vNum === 2 ? "PERINGATAN KE-2 (TERAKHIR)!" : "PERINGATAN PELANGGARAN KE-1!";
+  els.violationMessage.textContent = `Terdeteksi: ${reason}. Sirine dan suara peringatan ke-${vNum} berbunyi otomatis.`;
   els.violationWarningNote.textContent =
     vNum === 2
       ? "PERHATIAN: Ini adalah peringatan ke-2. Jika keluar 1 kali lagi (ke-3), jawaban Anda OTOMATIS TERKIRIM dan ujian berakhir!"
-      : "Jika Anda keluar dari aplikasi ujian sebanyak 3 kali, jawaban akan otomatis terkirim.";
+      : "Ini adalah peringatan ke-1. Jika melakukan pelanggaran hingga 3 kali, jawaban otomatis terkirim dan ujian berakhir.";
   els.violationOverlay.classList.remove("hidden");
 }
 
@@ -822,9 +824,23 @@ function renderResultScreen(payload, serverRes) {
 // EVENT LISTENERS & ANTI-CHEAT LOCKS
 // =========================================================
 function bindEvents() {
-  els.btnEnableCamera.addEventListener("click", activateSetupCamera);
+  // Unlock mobile/desktop audio elements as early as possible on any user interaction
+  const unlockAndResume = () => {
+    naturalAlarm.unlockFromGesture();
+    naturalAlarm.resumeIfPlaying();
+  };
+  ["pointerdown", "touchstart", "click", "keydown"].forEach((evt) => {
+    document.addEventListener(evt, unlockAndResume, { passive: true });
+  });
+
+  els.btnEnableCamera.addEventListener("click", () => {
+    naturalAlarm.unlockFromGesture();
+    activateSetupCamera();
+  });
   els.btnTestAlarm.addEventListener("click", () => {
-    naturalAlarm.playTest();
+    naturalAlarm.playTest((playing) => {
+      els.btnTestAlarm.textContent = playing ? "🔇 Hentikan Uji" : "🔊 Uji Alarm";
+    });
   });
 
   els.loginForm.addEventListener("submit", handleLoginSubmit);
@@ -865,18 +881,26 @@ function bindEvents() {
     window.location.reload();
   });
 
-  // 1. Detect tab switch / minimize app
+  // 1. Detect tab switch / minimize app, and resume alarm if student returns before acknowledging
   document.addEventListener("visibilitychange", () => {
     if (document.hidden && state.examActive) {
       handleExitViolation("Berpindah tab atau meminimalkan aplikasi");
+    } else if (!document.hidden) {
+      naturalAlarm.resumeIfPlaying();
     }
   });
 
-  // 2. Detect switching to another window / app
+  // 2. Detect switching to another window / app, and resume alarm on focus return
   window.addEventListener("blur", () => {
     if (state.examActive) {
       handleExitViolation("Keluar dari jendela aplikasi ujian");
     }
+  });
+  window.addEventListener("focus", () => {
+    naturalAlarm.resumeIfPlaying();
+  });
+  window.addEventListener("pageshow", () => {
+    naturalAlarm.resumeIfPlaying();
   });
 
   // 3. Detect exiting fullscreen mode
