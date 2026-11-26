@@ -34,11 +34,12 @@
       <!-- Pengaturan Ujian -->
       <div class="card config-card">
         <div class="card-header-inline">
-          <h2>⚙️ Pengaturan Kode Masuk & Ujian</h2>
+          <h2>⚙️ Pengaturan Kode Masuk, Ujian & Google Spreadsheet</h2>
           <div class="toolbar-btns">
+            <button type="button" id="btn-open-tutorial" class="btn-outline-sm">📖 Tutorial Spreadsheet</button>
             <button type="button" id="btn-refresh-data" class="btn-outline-sm">↻ Muat Ulang</button>
             <button type="button" id="btn-export-csv" class="btn-primary btn-sm">⬇ Unduh Rekap CSV</button>
-            <button type="button" id="btn-clear-data" class="btn-danger-sm">🗑 Hapus Data Uji Coba</button>
+            <button type="button" id="btn-clear-data" class="btn-danger-sm">🗑 Hapus Data Lokal</button>
           </div>
         </div>
         <form id="config-form" class="config-grid">
@@ -59,6 +60,21 @@
           </div>
           <div class="form-group cfg-submit-wrap">
             <button type="submit" class="btn-secondary">Simpan Pengaturan</button>
+          </div>
+          <div class="form-group cfg-sheet-row">
+            <label for="cfg-spreadsheet-url">URL Web App Google Spreadsheet (Apps Script `/exec`)</label>
+            <div class="sheet-url-wrap">
+              <input
+                type="url"
+                id="cfg-spreadsheet-url"
+                placeholder="https://script.google.com/macros/s/.../exec"
+              />
+              <button type="button" id="btn-test-sheet" class="btn-outline-sm">🔗 Tes Koneksi</button>
+              <button type="button" id="btn-copy-config" class="btn-outline-sm">📋 Salin Config GitHub</button>
+            </div>
+            <small class="hint">
+              Agar semua HP/laptop siswa di GitHub Pages otomatis mengirim jawaban ke Spreadsheet ini, tempel URL di atas ke file <code>data/config.json</code> lalu push ke GitHub.
+            </small>
           </div>
         </form>
         <div id="cfg-msg" class="mt-8"></div>
@@ -86,7 +102,10 @@
 
       <!-- Tabel Peserta -->
       <div class="card table-card">
-        <h2>📊 Daftar Hasil & Pengawasan Peserta</h2>
+        <div class="card-header-inline">
+          <h2>📊 Daftar Hasil & Pengawasan Peserta</h2>
+          <span id="sync-status-badge" class="status-pill pending">Mode Lokal</span>
+        </div>
         <div class="table-wrap">
           <table class="data-table">
             <thead>
@@ -99,7 +118,7 @@
                 <th>Pelanggaran</th>
                 <th>Peringatan Kamera</th>
                 <th>Status</th>
-                <th>Bukti</th>
+                <th>Jawaban & Bukti</th>
               </tr>
             </thead>
             <tbody id="submissions-tbody"></tbody>
@@ -107,6 +126,33 @@
         </div>
       </div>
     </section>
+  </div>
+
+  <!-- Modal Tutorial Google Spreadsheet -->
+  <div id="tutorial-modal" class="modal-backdrop hidden">
+    <div class="modal-card modal-lg">
+      <div class="zoom-header">
+        <h3>📖 Tutorial Menyambungkan Google Spreadsheet</h3>
+        <button type="button" id="btn-close-tutorial" class="btn-outline-sm">✕ Tutup</button>
+      </div>
+      <div class="tutorial-body">
+        <ol class="tutorial-steps">
+          <li>Buka <strong>Google Sheets</strong> (<a href="https://sheets.google.com" target="_blank" rel="noopener">sheets.google.com</a>) dan buat Spreadsheet baru (misal: <em>Rekap SAS IPA Kelas 9</em>).</li>
+          <li>Klik menu <strong>Ekstensi (Extensions) → Apps Script</strong>, lalu hapus semua kode bawaan.</li>
+          <li>
+            Klik tombol di bawah untuk menyalin kode Apps Script, lalu tempel ke editor Apps Script dan simpan (<code>Ctrl+S</code> / <code>Cmd+S</code>):
+            <div class="mt-8">
+              <button type="button" id="btn-copy-gas" class="btn-primary btn-sm">📋 Salin Kode Apps Script (Code.gs)</button>
+              <span id="gas-copy-status" class="hint" style="display:inline;margin-left:8px;"></span>
+            </div>
+          </li>
+          <li>Klik <strong>Terapkan (Deploy) → Deployment baru (New deployment)</strong> → pilih jenis <strong>Aplikasi Web (Web app)</strong>.</li>
+          <li>Atur <strong>Jalankan sebagai</strong> = <em>Saya (Me)</em> dan <strong>Yang memiliki akses</strong> = <em>Siapa saja (Anyone)</em> → klik <strong>Terapkan (Deploy)</strong> dan izinkan akses.</li>
+          <li>Salin <strong>URL Web App</strong> yang berakhiran <code>/exec</code>, lalu tempel di kolom <em>URL Web App Google Spreadsheet</em> pada halaman ini dan klik <strong>Tes Koneksi</strong>.</li>
+          <li><strong>Jika memakai GitHub Pages:</strong> klik <em>Salin Config GitHub</em> lalu tempel ke file <code>data/config.json</code> di repositori GitHub Anda (<code>elsaayuningthiaswahyudi/IPA9SAS</code>) agar seluruh perangkat siswa otomatis terhubung.</li>
+        </ol>
+      </div>
+    </div>
   </div>
 
   <!-- Modal Detail Siswa -->

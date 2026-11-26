@@ -16,6 +16,7 @@ const state = {
   durationSeconds: 90 * 60,
   remainingSeconds: 90 * 60,
   maxViolations: 3,
+  spreadsheetUrl: "",
   questions: [],
   staticKeyQuestions: null,
   currentIndex: 0,
@@ -122,24 +123,53 @@ function getLocalConfig() {
   }
 }
 
-async function init() {
-  bindEvents();
+async function loadEffectiveConfig() {
+  const localCfg = getLocalConfig();
   try {
     const res = await fetch("api/exam-info");
     if (res.ok) {
       const info = await res.json();
-      state.durationSeconds = (info.durationMinutes || 90) * 60;
-      state.remainingSeconds = state.durationSeconds;
-      state.maxViolations = info.maxViolations || 3;
-      return;
+      return {
+        durationMinutes: info.durationMinutes || 90,
+        maxViolations: info.maxViolations || 3,
+        spreadsheetUrl: info.spreadsheetUrl || localCfg.spreadsheetUrl || "",
+        examCode: localCfg.examCode || "",
+        showScoreToStudent: info.showScoreToStudent !== false,
+      };
     }
   } catch {
-    // Fallback below
+    // Fallback to static data/config.json
   }
-  const localCfg = getLocalConfig();
-  state.durationSeconds = (localCfg.durationMinutes || 90) * 60;
+
+  let fileCfg = {};
+  try {
+    const cfgResp = await fetch("data/config.json");
+    if (cfgResp.ok) {
+      fileCfg = await cfgResp.json();
+    }
+  } catch {
+    // Ignore
+  }
+
+  return {
+    durationMinutes: localCfg.durationMinutes || fileCfg.durationMinutes || 90,
+    maxViolations: localCfg.maxViolations || fileCfg.maxViolations || 3,
+    spreadsheetUrl: localCfg.spreadsheetUrl || fileCfg.spreadsheetUrl || "",
+    examCode: localCfg.examCode || fileCfg.examCode || "IPA9SAS",
+    showScoreToStudent:
+      localCfg.showScoreToStudent !== undefined
+        ? localCfg.showScoreToStudent
+        : fileCfg.showScoreToStudent !== false,
+  };
+}
+
+async function init() {
+  bindEvents();
+  const cfg = await loadEffectiveConfig();
+  state.durationSeconds = cfg.durationMinutes * 60;
   state.remainingSeconds = state.durationSeconds;
-  state.maxViolations = localCfg.maxViolations || 3;
+  state.maxViolations = cfg.maxViolations;
+  state.spreadsheetUrl = cfg.spreadsheetUrl;
 }
 
 async function activateSetupCamera() {
@@ -296,13 +326,14 @@ async function handleLoginSubmit(e) {
     }
 
     if (!backendAvailable) {
-      const localCfg = getLocalConfig();
-      const expectedCode = (localCfg.examCode || "IPA9SAS").trim().toUpperCase();
-      if (code === expectedCode || (!localCfg.examCode && code === "SASIPA9")) {
+      const cfg = await loadEffectiveConfig();
+      const expectedCode = (cfg.examCode || "IPA9SAS").trim().toUpperCase();
+      if (code === expectedCode || (expectedCode === "IPA9SAS" && code === "SASIPA9")) {
         state.sessionId = "local_" + Date.now();
-        state.durationSeconds = (localCfg.durationMinutes || 90) * 60;
+        state.durationSeconds = cfg.durationMinutes * 60;
         state.remainingSeconds = state.durationSeconds;
-        state.maxViolations = localCfg.maxViolations || 3;
+        state.maxViolations = cfg.maxViolations;
+        state.spreadsheetUrl = cfg.spreadsheetUrl;
         verified = true;
       } else {
         showLoginError("Kode masuk salah! Hubungi guru/pengawas ujian.");
@@ -672,8 +703,8 @@ async function submitExam(status) {
       }
     });
     const score = totalQuestions ? Math.round((correctCount / totalQuestions) * 1000) / 10 : 0;
-    const localCfg = getLocalConfig();
-    const showScore = localCfg.showScoreToStudent !== false;
+    const cfg = await loadEffectiveConfig();
+    const showScore = cfg.showScoreToStudent !== false;
 
     const localRecord = {
       id: payload.sessionId,
@@ -703,6 +734,32 @@ async function submitExam(status) {
       localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(filtered.slice(0, 25)));
     } catch {
       // Ignore storage quota issues
+    }
+
+    // Forward to Google Spreadsheet Web App if configured
+    const sheetUrl = (state.spreadsheetUrl || cfg.spreadsheetUrl || "").trim();
+    if (sheetUrl) {
+      const sheetPayload = {
+        ...localRecord,
+        snapshots: (payload.snapshots || []).slice(0, 5),
+      };
+      try {
+        await fetch(sheetUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(sheetPayload),
+        });
+      } catch {
+        try {
+          await fetch(sheetUrl, {
+            method: "POST",
+            mode: "no-cors",
+            body: JSON.stringify(sheetPayload),
+          });
+        } catch {
+          // Ignore network error during fallback
+        }
+      }
     }
 
     serverRes = {

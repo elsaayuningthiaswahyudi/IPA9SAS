@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import threading
+import urllib.request
 import uuid
 from datetime import datetime
 from http import HTTPStatus
@@ -45,6 +46,21 @@ def load_json(path, default):
 def save_json(path, payload):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+def forward_to_spreadsheet(url, payload):
+    try:
+        data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={"Content-Type": "text/plain;charset=utf-8"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            resp.read()
+    except Exception as exc:
+        print(f"[Spreadsheet Sync Warning] {exc}")
 
 
 def sanitize_id(value):
@@ -99,7 +115,8 @@ class ExamHandler(SimpleHTTPRequestHandler):
                     "durationMinutes": cfg.get("durationMinutes", 90),
                     "maxViolations": cfg.get("maxViolations", 3),
                     "showScoreToStudent": cfg.get("showScoreToStudent", True),
-                    "classes": cfg.get("classes", ["IX-A", "IX-B", "IX-C", "IX-D"]),
+                    "spreadsheetUrl": cfg.get("spreadsheetUrl", ""),
+                    "classes": cfg.get("classes", ["IX A", "IX B", "IX C", "IX D"]),
                 },
             )
             return
@@ -139,6 +156,7 @@ class ExamHandler(SimpleHTTPRequestHandler):
                         "durationMinutes": cfg.get("durationMinutes", 90),
                         "maxViolations": cfg.get("maxViolations", 3),
                         "showScoreToStudent": cfg.get("showScoreToStudent", True),
+                        "spreadsheetUrl": cfg.get("spreadsheetUrl", ""),
                     },
                 },
             )
@@ -336,6 +354,16 @@ class ExamHandler(SimpleHTTPRequestHandler):
                 subs.insert(0, record)
                 save_json(SUBMISSIONS_PATH, subs)
 
+            spreadsheet_url = (cfg.get("spreadsheetUrl") or "").strip()
+            if spreadsheet_url:
+                sheet_payload = dict(record)
+                sheet_payload["snapshots"] = snapshots[:5]
+                threading.Thread(
+                    target=forward_to_spreadsheet,
+                    args=(spreadsheet_url, sheet_payload),
+                    daemon=True,
+                ).start()
+
             show_score = cfg.get("showScoreToStudent", True)
             self.send_json(
                 HTTPStatus.OK,
@@ -367,6 +395,8 @@ class ExamHandler(SimpleHTTPRequestHandler):
                     cfg["durationMinutes"] = max(5, min(240, int(body["durationMinutes"])))
                 if "showScoreToStudent" in body:
                     cfg["showScoreToStudent"] = bool(body["showScoreToStudent"])
+                if "spreadsheetUrl" in body:
+                    cfg["spreadsheetUrl"] = (body.get("spreadsheetUrl") or "").strip()
                 save_json(CONFIG_PATH, cfg)
             self.send_json(HTTPStatus.OK, {"ok": True, "message": "Pengaturan berhasil disimpan."})
             return

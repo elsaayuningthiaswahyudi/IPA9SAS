@@ -1094,6 +1094,75 @@ button, .btn-primary, .btn-secondary, .btn-outline-sm, .btn-danger-sm {
 
 .detail-body { margin-top: 14px; }
 
+.cfg-sheet-row {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+
+.sheet-url-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sheet-url-wrap input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.tutorial-body {
+  margin-top: 12px;
+}
+
+.tutorial-steps {
+  padding-left: 20px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.94rem;
+}
+
+.answers-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.ans-cell {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 4px;
+  text-align: center;
+  font-size: 0.78rem;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.ans-cell span {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.ans-correct {
+  background: var(--success-soft);
+  border-color: #86efac;
+  color: #14532d;
+}
+
+.ans-wrong {
+  background: var(--danger-soft);
+  border-color: #fca5a5;
+  color: #7f1d1d;
+}
+
+.ans-empty {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+
 @media (max-width: 960px) {
   .login-grid { grid-template-columns: 1fr; }
   .exam-workspace { grid-template-columns: 1fr; }
