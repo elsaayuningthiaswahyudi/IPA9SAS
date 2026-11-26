@@ -13,10 +13,10 @@
  */
 
 const ALARM_FILES = {
-  test: "assets/audio/alarm-test.wav?v=20261126d",
-  1: "assets/audio/alarm-1.wav?v=20261126d",
-  2: "assets/audio/alarm-2.wav?v=20261126d",
-  3: "assets/audio/alarm-3.wav?v=20261126d",
+  test: "assets/audio/alarm-test.wav?v=20261126e",
+  1: "assets/audio/alarm-1.wav?v=20261126e",
+  2: "assets/audio/alarm-2.wav?v=20261126e",
+  3: "assets/audio/alarm-3.wav?v=20261126e",
 };
 
 const VOICE_TEXTS = {
@@ -326,13 +326,13 @@ class NaturalAlarm {
 
   _playSynthesizedSweep(urgent = false) {
     const ctx = this.ensureContext();
-    if (!ctx || !this.sirenMasterGain) return 1.3;
+    if (!ctx || !this.sirenMasterGain) return 1.5;
 
     const now = ctx.currentTime;
-    const dur = urgent ? 0.85 : 1.3;
-    const lowFreq = urgent ? 680 : 560;
-    const highFreq = urgent ? 1560 : 1320;
-    const half = dur * 0.5;
+    const dur = urgent ? 0.65 : 1.5;
+    const lowFreq = urgent ? 520 : 460;
+    const highFreq = urgent ? 1340 : 1180;
+    const peakOffset = dur * 0.44;
 
     const oscMain = ctx.createOscillator();
     const oscSub = ctx.createOscillator();
@@ -343,21 +343,21 @@ class NaturalAlarm {
     oscSub.type = "triangle";
 
     oscMain.frequency.setValueAtTime(lowFreq, now);
-    oscMain.frequency.exponentialRampToValueAtTime(highFreq, now + half);
+    oscMain.frequency.exponentialRampToValueAtTime(highFreq, now + peakOffset);
     oscMain.frequency.exponentialRampToValueAtTime(lowFreq, now + dur);
 
-    oscSub.frequency.setValueAtTime(lowFreq * 0.5, now);
-    oscSub.frequency.exponentialRampToValueAtTime(highFreq * 0.5, now + half);
-    oscSub.frequency.exponentialRampToValueAtTime(lowFreq * 0.5, now + dur);
+    oscSub.frequency.setValueAtTime(lowFreq * 1.0042, now);
+    oscSub.frequency.exponentialRampToValueAtTime(highFreq * 1.0042, now + peakOffset);
+    oscSub.frequency.exponentialRampToValueAtTime(lowFreq * 1.0042, now + dur);
 
     filter.type = "lowpass";
-    filter.Q.setValueAtTime(2.4, now);
-    filter.frequency.setValueAtTime(1600, now);
-    filter.frequency.exponentialRampToValueAtTime(3200, now + half);
-    filter.frequency.exponentialRampToValueAtTime(1600, now + dur);
+    filter.Q.setValueAtTime(1.6, now);
+    filter.frequency.setValueAtTime(1500, now);
+    filter.frequency.exponentialRampToValueAtTime(2850, now + peakOffset);
+    filter.frequency.exponentialRampToValueAtTime(1500, now + dur);
 
     const subGain = ctx.createGain();
-    subGain.gain.setValueAtTime(0.45, now);
+    subGain.gain.setValueAtTime(0.5, now);
 
     env.gain.setValueAtTime(0.001, now);
     env.gain.linearRampToValueAtTime(0.65, now + 0.04);

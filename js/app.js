@@ -1,4 +1,4 @@
-import { naturalAlarm } from "./alarm.js?v=20261126d";
+import { naturalAlarm } from "./alarm.js?v=20261126e";
 import { CameraProctor } from "./camera.js";
 
 const STORAGE_KEY = "sas_ipa9_active_session_v1";
