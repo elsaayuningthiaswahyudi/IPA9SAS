@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SAS Ganjil IPA Kelas 9 — Sistem Ujian Anti-Curang</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <!-- =========================================================
+       VIEW 1: HALAMAN LOGIN & PERSIAPAN KAMERA ANTI-CURANG
+  ========================================================== -->
+  <section id="login-view" class="view active">
+    <div class="login-shell">
+      <header class="exam-hero">
+        <div class="hero-badge">KURIKULUM MERDEKA • FASE D</div>
+        <h1>Sumatif Akhir Semester (SAS) Ganjil</h1>
+        <p class="hero-sub">Ilmu Pengetahuan Alam (IPA) — Kelas IX • Tahun Pelajaran 2026/2027</p>
+        <div class="hero-chips">
+          <span>📝 40 Soal Pilihan Ganda</span>
+          <span>⏱️ Waktu 90 Menit</span>
+          <span>📷 Pengawasan Kamera Aktif</span>
+          <span>🚨 Alarm & Auto-Submit 3x Keluar</span>
+        </div>
+      </header>
+
+      <div class="login-grid">
+        <!-- Kolom Kiri: Form Login Siswa -->
+        <div class="card login-card">
+          <div class="card-header">
+            <h2>Identitas Peserta Ujian</h2>
+            <p>Masukkan Nama Lengkap, Kelas, dan Kode Masuk dari pengawas ujian.</p>
+          </div>
+
+          <form id="login-form" autocomplete="off">
+            <div class="form-group">
+              <label for="student-name">Nama Lengkap <span class="req">*</span></label>
+              <input
+                type="text"
+                id="student-name"
+                placeholder="Contoh: Dina Rahmawati"
+                required
+                minlength="2"
+                maxlength="80"
+              />
+            </div>
+
+            <div class="form-group">
+              <label for="student-class">Kelas <span class="req">*</span></label>
+              <select id="student-class" required>
+                <option value="">-- Pilih Kelas --</option>
+                <option value="IX A">IX A</option>
+                <option value="IX B">IX B</option>
+                <option value="IX C">IX C</option>
+                <option value="IX D">IX D</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="exam-code">Kode Masuk <span class="req">*</span></label>
+              <div class="code-input-wrap">
+                <input
+                  type="text"
+                  id="exam-code"
+                  placeholder="Masukkan kode masuk ujian"
+                  required
+                  style="text-transform: uppercase; letter-spacing: 1px;"
+                />
+              </div>
+              <small class="hint">Mintalah kode masuk kepada guru atau pengawas ruang.</small>
+            </div>
+
+            <div class="rules-box">
+              <h3>⚠️ Ketentuan Sistem Anti-Curang</h3>
+              <ul>
+                <li><strong>Kamera Wajib Aktif:</strong> Kamera memantau peserta selama ujian dan mengambil foto bukti otomatis jika terjadi aktivitas mencurigakan.</li>
+                <li><strong>Mode Layar Penuh (Fullscreen):</strong> Aplikasi berjalan dalam layar penuh untuk mencegah pembukaan tab atau aplikasi lain.</li>
+                <li><strong>Alarm Suara Otomatis:</strong> Jika keluar dari aplikasi, pindah tab, atau keluar layar penuh, <strong>alarm peringatan alami akan langsung berbunyi</strong>.</li>
+                <li><strong>Batas Maksimal 3 Kali:</strong> Pelanggaran keluar aplikasi sebanyak <strong>3 kali</strong> akan menyebabkan <strong>jawaban otomatis terkirim</strong> dan ujian dihentikan.</li>
+              </ul>
+            </div>
+
+            <div class="form-check">
+              <input type="checkbox" id="agree-rules" required />
+              <label for="agree-rules">
+                Saya siap mengerjakan dengan jujur, mengizinkan kamera pengawas aktif, dan mematuhi seluruh tata tertib ujian.
+              </label>
+            </div>
+
+            <div id="login-error" class="alert-error hidden"></div>
+
+            <button type="submit" id="btn-start-exam" class="btn-primary btn-lg btn-block">
+              🚀 Mulai Ujian Sekarang
+            </button>
+          </form>
+
+          <div class="login-footer-links">
+            <a href="pengawas.html" class="teacher-link">🛡️ Portal Pengawas / Guru</a>
+          </div>
+        </div>
+
+        <!-- Kolom Kanan: Verifikasi Kamera & Alarm -->
+        <div class="card proctor-setup-card">
+          <div class="card-header">
+            <h2>Verifikasi Kamera & Audio Alarm</h2>
+            <p>Pastikan wajah terlihat jelas di kamera dan suara speaker aktif sebelum memulai.</p>
+          </div>
+
+          <div class="camera-preview-box">
+            <video id="setup-video" autoplay playsinline muted></video>
+            <div id="setup-camera-placeholder" class="camera-placeholder">
+              <div class="cam-icon">📷</div>
+              <p>Kamera belum diaktifkan</p>
+              <button type="button" id="btn-enable-camera" class="btn-secondary">
+                Aktifkan Kamera Pengawas
+              </button>
+            </div>
+            <div id="setup-cam-badge" class="cam-live-badge hidden">
+              <span class="rec-dot"></span> KAMERA SIAP
+            </div>
+          </div>
+
+          <div class="check-status-list">
+            <div class="check-item" id="status-camera-item">
+              <span class="status-pill pending" id="pill-camera">Menunggu</span>
+              <div>
+                <strong>Kamera Pengawas</strong>
+                <small id="camera-status-text">Klik "Aktifkan Kamera Pengawas" untuk menguji webcam.</small>
+              </div>
+            </div>
+
+            <div class="check-item">
+              <span class="status-pill ready" id="pill-audio">Siap</span>
+              <div>
+                <strong>Sistem Alarm Alami</strong>
+                <small>Uji volume speaker Anda agar suara peringatan terdengar jelas.</small>
+              </div>
+              <button type="button" id="btn-test-alarm" class="btn-outline-sm">
+                🔊 Uji Alarm
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       VIEW 2: RUANG UJIAN ANTI-CURANG
+  ========================================================== -->
+  <section id="exam-view" class="view hidden">
+    <!-- Top Bar Sticky -->
+    <header class="exam-topbar">
+      <div class="topbar-left">
+        <div class="brand-mini">SAS IPA IX</div>
+        <div class="student-badge">
+          <strong id="display-name">-</strong>
+          <span id="display-class">-</span>
+        </div>
+      </div>
+
+      <div class="topbar-center">
+        <div id="violation-counter-pill" class="violation-pill level-0" title="Batas maksimal keluar aplikasi adalah 3 kali">
+          <span class="v-icon">🛡️</span>
+          <span>Pelanggaran Keluar: <strong id="violation-count-text">0 / 3</strong></span>
+        </div>
+        <div class="timer-pill" id="timer-pill">
+          <span>⏱️</span>
+          <strong id="timer-display">90:00</strong>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <button type="button" id="btn-fullscreen-toggle" class="btn-outline-sm" title="Masuk Layar Penuh">
+          ⛶ Layar Penuh
+        </button>
+        <button type="button" id="btn-finish-exam" class="btn-danger-sm">
+          ✔ Kumpulkan Jawaban
+        </button>
+      </div>
+    </header>
+
+    <!-- Konten Utama Ujian -->
+    <main class="exam-workspace">
+      <!-- Area Soal -->
+      <div class="question-panel card">
+        <div class="question-header">
+          <div class="q-meta">
+            <span class="q-number-badge" id="q-number-badge">Soal No. 1 / 40</span>
+            <span class="q-chapter-badge" id="q-chapter-badge">Bab 1</span>
+          </div>
+          <button type="button" id="btn-flag-question" class="btn-flag">
+            ⚑ Tandai Ragu-ragu
+          </button>
+        </div>
+
+        <div class="question-body no-select">
+          <p id="q-text" class="q-text">Memuat soal...</p>
+
+          <div id="q-image-container" class="q-image-container hidden">
+            <div id="q-image-note" class="q-image-note hidden"></div>
+            <img id="q-image" src="" alt="Gambar Soal" />
+            <button type="button" id="btn-zoom-image" class="btn-zoom-img">
+              🔍 Perbesar Gambar
+            </button>
+          </div>
+
+          <div id="q-options" class="q-options"></div>
+        </div>
+
+        <div class="question-footer">
+          <button type="button" id="btn-prev-q" class="btn-secondary">
+            ← Sebelumnya
+          </button>
+          <span class="progress-text" id="answered-progress-text">Terjawab: 0 / 40</span>
+          <button type="button" id="btn-next-q" class="btn-primary">
+            Selanjutnya →
+          </button>
+        </div>
+      </div>
+
+      <!-- Sidebar Pengawasan Kamera & Navigasi Nomor -->
+      <aside class="exam-sidebar">
+        <!-- Widget Kamera Proctoring -->
+        <div class="card proctor-widget">
+          <div class="proctor-widget-header">
+            <span class="live-indicator"><span class="rec-dot"></span> KAMERA PENGAWAS</span>
+            <span id="snapshot-counter" class="snap-count">0 Bukti</span>
+          </div>
+          <div class="proctor-video-wrap">
+            <video id="exam-video" autoplay playsinline muted></video>
+            <div id="camera-alert-banner" class="camera-alert-banner hidden"></div>
+          </div>
+          <div class="proctor-status-bar">
+            <span id="proctor-status-label" class="proctor-ok">● Pemantauan Normal</span>
+          </div>
+        </div>
+
+        <!-- Navigasi 40 Soal -->
+        <div class="card nav-widget">
+          <div class="nav-header">
+            <h3>Navigasi Soal (1–40)</h3>
+          </div>
+          <div id="question-nav-grid" class="question-nav-grid"></div>
+          <div class="nav-legend">
+            <span><i class="dot answered"></i> Dijawab</span>
+            <span><i class="dot flagged"></i> Ragu</span>
+            <span><i class="dot empty"></i> Kosong</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </section>
+
+  <!-- =========================================================
+       VIEW 3: HALAMAN HASIL & BUKTI PENGUMPULAN
+  ========================================================== -->
+  <section id="result-view" class="view hidden">
+    <div class="result-shell">
+      <div class="card result-card">
+        <div id="result-status-banner" class="result-banner success">
+          <div class="result-icon" id="result-icon">✅</div>
+          <h1 id="result-title">Jawaban Berhasil Dikirim</h1>
+          <p id="result-subtitle">Terima kasih telah mengerjakan Sumatif Akhir Semester IPA Kelas IX.</p>
+        </div>
+
+        <div class="result-summary-grid">
+          <div class="summary-box">
+            <span>Nama Peserta</span>
+            <strong id="res-name">-</strong>
+          </div>
+          <div class="summary-box">
+            <span>Kelas</span>
+            <strong id="res-class">-</strong>
+          </div>
+          <div class="summary-box">
+            <span>Status Pengumpulan</span>
+            <strong id="res-status">-</strong>
+          </div>
+          <div class="summary-box">
+            <span>Soal Terjawab</span>
+            <strong id="res-answered">-</strong>
+          </div>
+          <div class="summary-box" id="res-score-box">
+            <span>Nilai Akhir</span>
+            <strong id="res-score" class="score-highlight">-</strong>
+          </div>
+          <div class="summary-box">
+            <span>Pelanggaran Keluar Aplikasi</span>
+            <strong id="res-violations">-</strong>
+          </div>
+        </div>
+
+        <div class="result-actions">
+          <button type="button" id="btn-back-home" class="btn-secondary">
+            Kembali ke Halaman Depan
+          </button>
+          <a href="pengawas.html" class="btn-outline-sm">Portal Pengawas</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       MODAL & OVERLAY PENDUKUNG
+  ========================================================== -->
+  <!-- Overlay Peringatan Pelanggaran Keluar Aplikasi + Alarm -->
+  <div id="violation-overlay" class="violation-overlay hidden">
+    <div class="violation-modal">
+      <div class="siren-pulse">🚨</div>
+      <h2 id="violation-title">PERINGATAN PELANGGARAN!</h2>
+      <p id="violation-message" class="violation-msg">
+        Anda terdeteksi keluar dari halaman ujian. Alarm peringatan berbunyi secara otomatis.
+      </p>
+      <div class="violation-counter-big">
+        Pelanggaran ke-<span id="overlay-v-count">1</span> dari <strong>3</strong>
+      </div>
+      <p class="violation-warning-note" id="violation-warning-note">
+        Jika melakukan pelanggaran sebanyak 3 kali, jawaban Anda akan otomatis terkirim dan ujian berakhir.
+      </p>
+      <button type="button" id="btn-ack-violation" class="btn-ack-alarm">
+        🔇 Matikan Alarm & Kembali ke Ujian
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal Konfirmasi Kumpulkan Jawaban -->
+  <div id="confirm-submit-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <h3>Konfirmasi Pengumpulan Jawaban</h3>
+      <p id="confirm-submit-summary">Apakah Anda yakin ingin mengakhiri ujian dan mengirim seluruh jawaban?</p>
+      <div class="modal-actions">
+        <button type="button" id="btn-cancel-submit" class="btn-secondary">Periksa Lagi</button>
+        <button type="button" id="btn-confirm-submit" class="btn-primary">Ya, Kumpulkan Sekarang</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Zoom Gambar Soal -->
+  <div id="image-zoom-modal" class="modal-backdrop hidden">
+    <div class="zoom-modal-card">
+      <div class="zoom-header">
+        <strong id="zoom-caption">Gambar Soal</strong>
+        <button type="button" id="btn-close-zoom" class="btn-outline-sm">✕ Tutup</button>
+      </div>
+      <img id="zoomed-img" src="" alt="Perbesaran Gambar Soal" />
+    </div>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

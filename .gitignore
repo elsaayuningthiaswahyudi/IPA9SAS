@@ -1,0 +1,8 @@
+# Data hasil ujian & tangkapan kamera peserta (privasi)
+data/submissions.json
+data/snapshots/
+
+# OS & Python cache
+.DS_Store
+__pycache__/
+*.pyc

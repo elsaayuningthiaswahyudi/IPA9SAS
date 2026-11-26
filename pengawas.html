@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Portal Pengawas — SAS IPA Kelas 9</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body class="pengawas-body">
+  <div class="pengawas-shell">
+    <header class="pengawas-header">
+      <div>
+        <span class="hero-badge">DASHBOARD PENGAWAS & GURU</span>
+        <h1>Rekap Ujian & Bukti Anti-Curang SAS IPA Kelas 9</h1>
+      </div>
+      <div class="header-actions">
+        <a href="index.html" class="btn-secondary">← Halaman Ujian Siswa</a>
+      </div>
+    </header>
+
+    <!-- Gate PIN Pengawas -->
+    <section id="pin-gate" class="card pin-gate-card">
+      <h2>Masuk Portal Pengawas</h2>
+      <p>Masukkan PIN Pengawas untuk melihat hasil ujian, log pelanggaran, tangkapan kamera, dan pengaturan kode masuk.</p>
+      <form id="pin-form" class="pin-form">
+        <input type="password" id="teacher-pin-input" placeholder="Masukkan PIN Pengawas (default: GURU2026)" required />
+        <button type="submit" class="btn-primary">Buka Dashboard</button>
+      </form>
+      <div id="pin-error" class="alert-error hidden mt-8"></div>
+    </section>
+
+    <!-- Konten Dashboard Pengawas -->
+    <section id="dashboard-content" class="hidden">
+      <!-- Pengaturan Ujian -->
+      <div class="card config-card">
+        <div class="card-header-inline">
+          <h2>⚙️ Pengaturan Kode Masuk & Ujian</h2>
+          <div class="toolbar-btns">
+            <button type="button" id="btn-refresh-data" class="btn-outline-sm">↻ Muat Ulang</button>
+            <button type="button" id="btn-export-csv" class="btn-primary btn-sm">⬇ Unduh Rekap CSV</button>
+            <button type="button" id="btn-clear-data" class="btn-danger-sm">🗑 Hapus Data Uji Coba</button>
+          </div>
+        </div>
+        <form id="config-form" class="config-grid">
+          <div class="form-group">
+            <label for="cfg-exam-code">Kode Masuk Siswa</label>
+            <input type="text" id="cfg-exam-code" required style="text-transform: uppercase;" />
+          </div>
+          <div class="form-group">
+            <label for="cfg-duration">Durasi (Menit)</label>
+            <input type="number" id="cfg-duration" min="5" max="240" required />
+          </div>
+          <div class="form-group">
+            <label for="cfg-show-score">Tampilkan Nilai ke Siswa</label>
+            <select id="cfg-show-score">
+              <option value="true">Ya, Tampilkan setelah selesai</option>
+              <option value="false">Tidak, Hanya Pengawas yang melihat</option>
+            </select>
+          </div>
+          <div class="form-group cfg-submit-wrap">
+            <button type="submit" class="btn-secondary">Simpan Pengaturan</button>
+          </div>
+        </form>
+        <div id="cfg-msg" class="mt-8"></div>
+      </div>
+
+      <!-- Statistik Ringkas -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <span>Total Peserta Mengumpulkan</span>
+          <strong id="stat-total">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>Rata-rata Nilai</span>
+          <strong id="stat-avg">0</strong>
+        </div>
+        <div class="stat-card">
+          <span>Peserta Pernah Keluar Tab</span>
+          <strong id="stat-warned">0</strong>
+        </div>
+        <div class="stat-card danger">
+          <span>Dihentikan Otomatis (3x Curang)</span>
+          <strong id="stat-autosubmitted">0</strong>
+        </div>
+      </div>
+
+      <!-- Tabel Peserta -->
+      <div class="card table-card">
+        <h2>📊 Daftar Hasil & Pengawasan Peserta</h2>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Nama</th>
+                <th>Kelas</th>
+                <th>Nilai</th>
+                <th>Terjawab</th>
+                <th>Pelanggaran</th>
+                <th>Peringatan Kamera</th>
+                <th>Status</th>
+                <th>Bukti</th>
+              </tr>
+            </thead>
+            <tbody id="submissions-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal Detail Siswa -->
+  <div id="detail-modal" class="modal-backdrop hidden">
+    <div class="modal-card modal-lg">
+      <div class="zoom-header">
+        <h3 id="detail-title">Detail Pengawasan Siswa</h3>
+        <button type="button" id="btn-close-detail" class="btn-outline-sm">✕ Tutup</button>
+      </div>
+      <div id="detail-body" class="detail-body"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/pengawas.js"></script>
+</body>
+</html>

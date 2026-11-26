@@ -1,0 +1,17 @@
+{
+  "examTitle": "Sumatif Akhir Semester (SAS) Ganjil 2026/2027",
+  "subject": "Ilmu Pengetahuan Alam (IPA) – Kelas IX",
+  "curriculum": "Kurikulum Merdeka – Fase D",
+  "material": "Bab 1 – Bab 3",
+  "examCode": "IPA9SAS",
+  "teacherPin": "GURU2026",
+  "durationMinutes": 90,
+  "maxViolations": 3,
+  "showScoreToStudent": true,
+  "classes": [
+    "IX A",
+    "IX B",
+    "IX C",
+    "IX D"
+  ]
+}
