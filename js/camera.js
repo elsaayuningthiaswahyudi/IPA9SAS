@@ -87,7 +87,10 @@ export class CameraProctor {
     this.ctx.font = "11px sans-serif";
     this.ctx.fillText(`${ts} • ${reason}`.slice(0, 48), 8, h - 8);
 
-    const dataUrl = this.canvas.toDataURL("image/jpeg", 0.62);
+    let dataUrl = this.canvas.toDataURL("image/jpeg", 0.62);
+    if (dataUrl.length > 45000) {
+      dataUrl = this.canvas.toDataURL("image/jpeg", 0.45);
+    }
     const snap = {
       dataUrl,
       reason,

@@ -83,7 +83,7 @@ function getLocalSubmissions() {
   }
 }
 
-function jsonpRequest(url, timeoutMs = 10000) {
+function jsonpRequest(url, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const cbName = "__sasGasCb_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
     const script = document.createElement("script");
@@ -453,9 +453,13 @@ async function openDetailModal(sub) {
           ? renderSnapshotsGrid(fetched, sub.id)
           : `<p style="color:#64748b;">Tidak ada foto kamera tersimpan untuk peserta ini.</p>`;
       }
-    } catch {
+    } catch (err) {
       if (container) {
-        container.innerHTML = `<p style="color:#64748b;">Gagal memuat tangkapan kamera dari server sinkronisasi.</p>`;
+        const msg = String((err && err.message) || "");
+        const hint = msg.includes("Action tidak dikenali")
+          ? "Apps Script Google Sheets masih memakai versi lama. Salin ulang isi <code>google-apps-script/Code.gs</code> ke Apps Script lalu pilih <strong>Terapkan → Kelola deployment → Edit → Versi baru</strong>."
+          : `Gagal memuat tangkapan kamera (${escapeHtml(msg || "periksa koneksi sinkronisasi")}).`;
+        container.innerHTML = `<p style="color:#b45309;">${hint}</p>`;
       }
     }
   }
