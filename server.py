@@ -16,7 +16,7 @@ import uuid
 from datetime import datetime
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -136,6 +136,50 @@ class ExamHandler(SimpleHTTPRequestHandler):
                 for q in questions
             ]
             self.send_json(HTTPStatus.OK, {"questions": sanitized})
+            return
+
+        if path == "/api/sheet-proxy":
+            pin = (qs.get("pin", [""])[0]).strip()
+            sheet_url = (qs.get("url", [""])[0]).strip()
+            action = (qs.get("action", ["ping"])[0]).strip()
+            with DATA_LOCK:
+                cfg = load_json(CONFIG_PATH, {})
+                if pin != cfg.get("teacherPin", "GURU2026"):
+                    self.send_json(HTTPStatus.UNAUTHORIZED, {"ok": False, "message": "PIN pengawas salah."})
+                    return
+                if not sheet_url:
+                    sheet_url = (cfg.get("spreadsheetUrl") or "").strip()
+            if not sheet_url.startswith("https://script.google.com/"):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"ok": False, "message": "URL Web App harus diawali https://script.google.com/ dan berakhiran /exec"})
+                return
+            try:
+                sep = "&" if "?" in sheet_url else "?"
+                query_params = {"action": action}
+                if action == "list":
+                    query_params["pin"] = pin
+                target_url = f"{sheet_url}{sep}{urlencode(query_params)}"
+                req = urllib.request.Request(target_url, headers={"User-Agent": "SAS-IPA-Proxy/1.0"})
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    raw = resp.read().decode("utf-8", errors="replace")
+                try:
+                    parsed_json = json.loads(raw)
+                    self.send_json(HTTPStatus.OK, parsed_json)
+                except Exception:
+                    if "<html" in raw.lower() or "accounts.google.com" in raw.lower():
+                        self.send_json(
+                            HTTPStatus.BAD_GATEWAY,
+                            {
+                                "ok": False,
+                                "message": "Google mengembalikan halaman login HTML (bukan JSON). Pastikan di Apps Script 'Yang memiliki akses / Who has access' dipilih 'Siapa saja / Anyone' dan deployment sudah versi terbaru.",
+                            },
+                        )
+                    else:
+                        self.send_json(
+                            HTTPStatus.BAD_GATEWAY,
+                            {"ok": False, "message": f"Respon Google bukan JSON valid: {raw[:140]}"},
+                        )
+            except Exception as exc:
+                self.send_json(HTTPStatus.BAD_GATEWAY, {"ok": False, "message": f"Gagal menghubungi Google Apps Script: {exc}"})
             return
 
         if path == "/api/submissions":

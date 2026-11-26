@@ -160,20 +160,21 @@ function doPost(e) {
 function doGet(e) {
   const params = (e && e.parameter) ? e.parameter : {};
   const action = params.action || "ping";
+  const callback = params.callback || "";
 
   if (action === "ping") {
-    return jsonResponse({ ok: true, message: "Koneksi Spreadsheet SAS IPA 9 Aktif!" });
+    return jsonResponse({ ok: true, message: "Koneksi Spreadsheet SAS IPA 9 Aktif!" }, callback);
   }
 
   if (action === "list") {
     if (String(params.pin || "").trim() !== TEACHER_PIN) {
-      return jsonResponse({ ok: false, message: "PIN pengawas salah." });
+      return jsonResponse({ ok: false, message: "PIN pengawas salah." }, callback);
     }
 
     const sheet = getOrCreateSheet();
     const lastRow = sheet.getLastRow();
     if (lastRow <= 1) {
-      return jsonResponse({ ok: true, submissions: [] });
+      return jsonResponse({ ok: true, submissions: [] }, callback);
     }
 
     const values = sheet.getRange(2, 1, lastRow - 1, 58).getValues();
@@ -218,14 +219,20 @@ function doGet(e) {
       })
       .reverse();
 
-    return jsonResponse({ ok: true, submissions: submissions });
+    return jsonResponse({ ok: true, submissions: submissions }, callback);
   }
 
-  return jsonResponse({ ok: false, message: "Action tidak dikenali." });
+  return jsonResponse({ ok: false, message: "Action tidak dikenali." }, callback);
 }
 
-function jsonResponse(obj) {
-  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(
+function jsonResponse(obj, callback) {
+  const jsonText = JSON.stringify(obj);
+  if (callback && /^[a-zA-Z_$][0-9a-zA-Z_$.]*$/.test(callback)) {
+    return ContentService.createTextOutput(callback + "(" + jsonText + ");").setMimeType(
+      ContentService.MimeType.JAVASCRIPT
+    );
+  }
+  return ContentService.createTextOutput(jsonText).setMimeType(
     ContentService.MimeType.JSON
   );
 }

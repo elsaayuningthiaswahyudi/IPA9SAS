@@ -83,14 +83,105 @@ function getLocalSubmissions() {
   }
 }
 
+function jsonpRequest(url, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const cbName = "__sasGasCb_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
+    const script = document.createElement("script");
+    let finished = false;
+
+    const cleanup = () => {
+      if (script.parentNode) script.parentNode.removeChild(script);
+      try {
+        delete window[cbName];
+      } catch {
+        window[cbName] = undefined;
+      }
+    };
+
+    const timer = setTimeout(() => {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      reject(new Error("Timeout menghubungi Google Apps Script."));
+    }, timeoutMs);
+
+    window[cbName] = (data) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      cleanup();
+      resolve(data);
+    };
+
+    script.onerror = () => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timer);
+      cleanup();
+      reject(new Error("Script gagal dimuat (cek URL /exec atau akses 'Anyone')."));
+    };
+
+    const sep = url.includes("?") ? "&" : "?";
+    script.src = `${url}${sep}callback=${encodeURIComponent(cbName)}`;
+    document.head.appendChild(script);
+  });
+}
+
+async function callSheetGet(sheetUrl, action, pin = "") {
+  const cleanUrl = (sheetUrl || "").trim();
+  if (!cleanUrl) throw new Error("URL Spreadsheet kosong.");
+  if (!cleanUrl.startsWith("https://script.google.com/")) {
+    throw new Error("URL harus diawali https://script.google.com/ dan berakhiran /exec.");
+  }
+
+  // 1. If local server.py is active, use server-side proxy (immune to browser CORS/multi-login)
+  if (!isStaticMode) {
+    try {
+      const proxyUrl = `api/sheet-proxy?url=${encodeURIComponent(cleanUrl)}&action=${encodeURIComponent(action)}&pin=${encodeURIComponent(pin)}`;
+      const resp = await fetch(proxyUrl);
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        throw new Error(data.message || "Gagal terhubung via server proxy.");
+      }
+      return data;
+    } catch (err) {
+      throw err;
+    }
+  }
+
+  // 2. Direct fetch (static hosting / GitHub Pages)
+  const sep = cleanUrl.includes("?") ? "&" : "?";
+  const target =
+    action === "list"
+      ? `${cleanUrl}${sep}action=list&pin=${encodeURIComponent(pin)}`
+      : `${cleanUrl}${sep}action=${encodeURIComponent(action)}`;
+
+  try {
+    const resp = await fetch(target);
+    const data = await resp.json();
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.message || "Respon error dari Google Apps Script.");
+    }
+    return data;
+  } catch (fetchErr) {
+    // 3. Fallback JSONP (bypasses browser CORS redirect blocks on script.googleusercontent.com)
+    try {
+      const jsonpData = await jsonpRequest(target);
+      if (!jsonpData || !jsonpData.ok) {
+        throw new Error((jsonpData && jsonpData.message) || "Respon JSONP gagal.");
+      }
+      return jsonpData;
+    } catch (jsonpErr) {
+      throw new Error(
+        `Browser tidak dapat membaca respon dari Google Apps Script (${fetchErr.message}). Pastikan URL berakhiran /exec, deployment diatur "Anyone / Siapa saja", atau coba buka link uji langsung.`
+      );
+    }
+  }
+}
+
 async function fetchSpreadsheetSubmissions(sheetUrl, pin) {
   if (!sheetUrl) return { ok: false, submissions: [] };
-  const sep = sheetUrl.includes("?") ? "&" : "?";
-  const resp = await fetch(`${sheetUrl}${sep}action=list&pin=${encodeURIComponent(pin)}`);
-  const data = await resp.json();
-  if (!resp.ok || !data.ok) {
-    throw new Error(data.message || "Gagal mengambil data dari Google Spreadsheet.");
-  }
+  const data = await callSheetGet(sheetUrl, "list", pin);
   return { ok: true, submissions: data.submissions || [] };
 }
 
@@ -372,16 +463,17 @@ els.btnTestSheet.addEventListener("click", async () => {
   }
   els.cfgMsg.innerHTML = `<div class="hint">Menguji koneksi ke Google Spreadsheet...</div>`;
   try {
-    const sep = url.includes("?") ? "&" : "?";
-    const resp = await fetch(`${url}${sep}action=ping`);
-    const data = await resp.json();
-    if (data && data.ok) {
-      els.cfgMsg.innerHTML = `<div class="alert-success">✅ ${escapeHtml(data.message)}</div>`;
-    } else {
-      els.cfgMsg.innerHTML = `<div class="alert-error">Respon tidak sesuai dari URL Spreadsheet.</div>`;
-    }
+    const data = await callSheetGet(url, "ping", activePin);
+    els.cfgMsg.innerHTML = `<div class="alert-success">✅ ${escapeHtml(data.message || "Koneksi Spreadsheet Aktif!")}</div>`;
   } catch (err) {
-    els.cfgMsg.innerHTML = `<div class="alert-error">Gagal terhubung ke Spreadsheet. Pastikan Deploy Web App diatur "Anyone / Siapa saja".</div>`;
+    const sep = url.includes("?") ? "&" : "?";
+    const testLink = `${url}${sep}action=ping`;
+    els.cfgMsg.innerHTML = `<div class="alert-error">
+      ${escapeHtml(err.message)}
+      <div class="mt-8">
+        <a href="${escapeHtml(testLink)}" target="_blank" rel="noopener" class="btn-outline-sm">🔍 Buka Tes Langsung di Tab Baru</a>
+      </div>
+    </div>`;
   }
 });
 
