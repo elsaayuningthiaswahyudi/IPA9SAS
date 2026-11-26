@@ -234,7 +234,7 @@ async function loadDashboard() {
 
       const cfg = data.config || {};
       els.cfgExamCode.value = cfg.examCode || "IPA9SAS";
-      els.cfgDuration.value = cfg.durationMinutes || 90;
+      els.cfgDuration.value = cfg.durationMinutes || 120;
       els.cfgShowScore.value = String(cfg.showScoreToStudent !== false);
       sheetUrl = cfg.spreadsheetUrl || "";
       els.cfgSpreadsheetUrl.value = sheetUrl;
@@ -258,7 +258,7 @@ async function loadDashboard() {
     els.pinGate.classList.add("hidden");
     els.dashboardContent.classList.remove("hidden");
     els.cfgExamCode.value = localCfg.examCode || repoCfg.examCode || "IPA9SAS";
-    els.cfgDuration.value = localCfg.durationMinutes || repoCfg.durationMinutes || 90;
+    els.cfgDuration.value = localCfg.durationMinutes || repoCfg.durationMinutes || 120;
     els.cfgShowScore.value = String(
       (localCfg.showScoreToStudent !== undefined
         ? localCfg.showScoreToStudent
@@ -486,7 +486,7 @@ els.btnCopyConfig.addEventListener("click", async () => {
       material: "Bab 1 – Bab 3",
       examCode: els.cfgExamCode.value.trim().toUpperCase() || "IPA9SAS",
       teacherPin: activePin || "GURU2026",
-      durationMinutes: Number(els.cfgDuration.value) || 90,
+      durationMinutes: Number(els.cfgDuration.value) || 120,
       maxViolations: 3,
       showScoreToStudent: els.cfgShowScore.value === "true",
       spreadsheetUrl: els.cfgSpreadsheetUrl.value.trim(),

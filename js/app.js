@@ -13,8 +13,8 @@ const state = {
   className: "",
   examCode: "",
   startedAt: null,
-  durationSeconds: 90 * 60,
-  remainingSeconds: 90 * 60,
+  durationSeconds: 120 * 60,
+  remainingSeconds: 120 * 60,
   maxViolations: 3,
   spreadsheetUrl: "",
   questions: [],
@@ -52,6 +52,7 @@ const els = {
   pillCamera: document.getElementById("pill-camera"),
   cameraStatusText: document.getElementById("camera-status-text"),
   btnTestAlarm: document.getElementById("btn-test-alarm"),
+  heroDurationChip: document.getElementById("hero-duration-chip"),
 
   displayName: document.getElementById("display-name"),
   displayClass: document.getElementById("display-class"),
@@ -130,7 +131,7 @@ async function loadEffectiveConfig() {
     if (res.ok) {
       const info = await res.json();
       return {
-        durationMinutes: info.durationMinutes || 90,
+        durationMinutes: info.durationMinutes || 120,
         maxViolations: info.maxViolations || 3,
         spreadsheetUrl: info.spreadsheetUrl || localCfg.spreadsheetUrl || "",
         examCode: localCfg.examCode || "",
@@ -152,7 +153,7 @@ async function loadEffectiveConfig() {
   }
 
   return {
-    durationMinutes: localCfg.durationMinutes || fileCfg.durationMinutes || 90,
+    durationMinutes: localCfg.durationMinutes || fileCfg.durationMinutes || 120,
     maxViolations: localCfg.maxViolations || fileCfg.maxViolations || 3,
     spreadsheetUrl: localCfg.spreadsheetUrl || fileCfg.spreadsheetUrl || "",
     examCode: localCfg.examCode || fileCfg.examCode || "IPA9SAS",
@@ -170,6 +171,9 @@ async function init() {
   state.remainingSeconds = state.durationSeconds;
   state.maxViolations = cfg.maxViolations;
   state.spreadsheetUrl = cfg.spreadsheetUrl;
+  if (els.heroDurationChip) {
+    els.heroDurationChip.textContent = `⏱️ Waktu ${cfg.durationMinutes} Menit`;
+  }
 }
 
 async function activateSetupCamera() {
@@ -316,7 +320,7 @@ async function handleLoginSubmit(e) {
           return;
         }
         state.sessionId = data.sessionId;
-        state.durationSeconds = (data.durationMinutes || 90) * 60;
+        state.durationSeconds = (data.durationMinutes || 120) * 60;
         state.remainingSeconds = state.durationSeconds;
         state.maxViolations = data.maxViolations || 3;
         verified = true;

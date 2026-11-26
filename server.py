@@ -112,7 +112,7 @@ class ExamHandler(SimpleHTTPRequestHandler):
                     "subject": cfg.get("subject", "Ilmu Pengetahuan Alam (IPA) – Kelas IX"),
                     "curriculum": cfg.get("curriculum", "Kurikulum Merdeka – Fase D"),
                     "material": cfg.get("material", "Bab 1 – Bab 3"),
-                    "durationMinutes": cfg.get("durationMinutes", 90),
+                    "durationMinutes": cfg.get("durationMinutes", 120),
                     "maxViolations": cfg.get("maxViolations", 3),
                     "showScoreToStudent": cfg.get("showScoreToStudent", True),
                     "spreadsheetUrl": cfg.get("spreadsheetUrl", ""),
@@ -197,7 +197,7 @@ class ExamHandler(SimpleHTTPRequestHandler):
                     "submissions": subs,
                     "config": {
                         "examCode": cfg.get("examCode", "IPA9SAS"),
-                        "durationMinutes": cfg.get("durationMinutes", 90),
+                        "durationMinutes": cfg.get("durationMinutes", 120),
                         "maxViolations": cfg.get("maxViolations", 3),
                         "showScoreToStudent": cfg.get("showScoreToStudent", True),
                         "spreadsheetUrl": cfg.get("spreadsheetUrl", ""),
@@ -314,7 +314,7 @@ class ExamHandler(SimpleHTTPRequestHandler):
                 {
                     "ok": True,
                     "sessionId": uuid.uuid4().hex[:16],
-                    "durationMinutes": cfg.get("durationMinutes", 90),
+                    "durationMinutes": cfg.get("durationMinutes", 120),
                     "maxViolations": cfg.get("maxViolations", 3),
                     "showScoreToStudent": cfg.get("showScoreToStudent", True),
                 },

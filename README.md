@@ -18,7 +18,7 @@ Aplikasi ujian berbasis web untuk pelaksanaan **Sumatif Akhir Semester (SAS) Gan
    - Nonaktifkan klik kanan, copy-paste, seleksi teks soal, dan pintasan DevTools umum.
 4. **40 Soal & Gambar Sesuai Nomor** (`data/questions.json` & `assets/images/`):
    - Gambar/grafik ditampilkan pada nomor `3, 4, 6, 9, 13, 14, 17, 21, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40` beserta fitur **Perbesar Gambar** di dalam layar ujian.
-   - Timer hitung mundur 90 menit, penanda Ragu-ragu, dan navigasi 40 nomor soal.
+   - Timer hitung mundur 120 menit, penanda Ragu-ragu, dan navigasi 40 nomor soal.
 5. **Portal Pengawas / Guru** (`pengawas.html`):
    - Dilindungi PIN pengawas (default: `GURU2026`).
    - Melihat rekap nilai, status pelanggaran, log kejadian, galeri foto kamera peserta, ubah **Kode Masuk**, serta **Unduh Rekap CSV**.
