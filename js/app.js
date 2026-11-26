@@ -3,6 +3,7 @@ import { CameraProctor } from "./camera.js";
 
 const STORAGE_KEY = "sas_ipa9_active_session_v1";
 const LOCAL_SUBMISSIONS_KEY = "sas_ipa9_local_submissions_v1";
+const LOCAL_CONFIG_KEY = "sas_ipa9_config_v1";
 
 const proctor = new CameraProctor();
 
@@ -16,6 +17,7 @@ const state = {
   remainingSeconds: 90 * 60,
   maxViolations: 3,
   questions: [],
+  staticKeyQuestions: null,
   currentIndex: 0,
   answers: {},
   flagged: {},
@@ -112,19 +114,32 @@ const els = {
 // =========================================================
 // INITIALIZATION & CAMERA SETUP
 // =========================================================
+function getLocalConfig() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_CONFIG_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
 async function init() {
   bindEvents();
   try {
-    const res = await fetch("/api/exam-info");
+    const res = await fetch("api/exam-info");
     if (res.ok) {
       const info = await res.json();
       state.durationSeconds = (info.durationMinutes || 90) * 60;
       state.remainingSeconds = state.durationSeconds;
       state.maxViolations = info.maxViolations || 3;
+      return;
     }
   } catch {
-    // Static fallback uses default 90 minutes and 3 violations
+    // Fallback below
   }
+  const localCfg = getLocalConfig();
+  state.durationSeconds = (localCfg.durationMinutes || 90) * 60;
+  state.remainingSeconds = state.durationSeconds;
+  state.maxViolations = localCfg.maxViolations || 3;
 }
 
 async function activateSetupCamera() {
@@ -178,6 +193,52 @@ function exitFullscreenSafe() {
 // =========================================================
 // LOGIN & EXAM START
 // =========================================================
+async function loadExamQuestions() {
+  // 1. Try local backend API first (keeps answer key on server)
+  try {
+    const qResp = await fetch("api/questions");
+    if (qResp.ok) {
+      const qJson = await qResp.json();
+      if (Array.isArray(qJson.questions) && qJson.questions.length > 0) {
+        state.staticKeyQuestions = null;
+        return qJson.questions;
+      }
+    }
+  } catch {
+    // Ignore and fallback to static JSON / JS module
+  }
+
+  // 2. Fallback for static hosting (e.g., GitHub Pages)
+  let rawList = null;
+  try {
+    const jsonResp = await fetch("data/questions.json");
+    if (jsonResp.ok) {
+      const parsed = await jsonResp.json();
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        rawList = parsed;
+      }
+    }
+  } catch {
+    // Ignore and fallback to bundled JS module
+  }
+
+  // 3. Fallback for file:// or restricted environments
+  if (!rawList) {
+    const mod = await import("./questions-fallback.js");
+    rawList = mod.FALLBACK_QUESTIONS || [];
+  }
+
+  state.staticKeyQuestions = rawList;
+  return rawList.map((q) => ({
+    number: q.number,
+    chapter: q.chapter || "",
+    question: q.question,
+    image: q.image || null,
+    imageNote: q.imageNote || null,
+    options: q.options,
+  }));
+}
+
 async function handleLoginSubmit(e) {
   e.preventDefault();
   els.loginError.classList.add("hidden");
@@ -209,40 +270,50 @@ async function handleLoginSubmit(e) {
 
   try {
     let verified = false;
+    let backendAvailable = false;
     try {
-      const resp = await fetch("/api/verify-code", {
+      const resp = await fetch("api/verify-code", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, className, code }),
       });
-      const data = await resp.json();
-      if (!resp.ok || !data.ok) {
-        showLoginError(data.message || "Kode masuk tidak valid.");
-        return;
+      const ct = resp.headers.get("content-type") || "";
+      if (ct.includes("application/json")) {
+        backendAvailable = true;
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          showLoginError(data.message || "Kode masuk tidak valid.");
+          return;
+        }
+        state.sessionId = data.sessionId;
+        state.durationSeconds = (data.durationMinutes || 90) * 60;
+        state.remainingSeconds = state.durationSeconds;
+        state.maxViolations = data.maxViolations || 3;
+        verified = true;
       }
-      state.sessionId = data.sessionId;
-      state.durationSeconds = (data.durationMinutes || 90) * 60;
-      state.remainingSeconds = state.durationSeconds;
-      state.maxViolations = data.maxViolations || 3;
-      verified = true;
     } catch {
-      // Static mode fallback (if opened without server.py)
-      if (code === "IPA9SAS" || code === "SASIPA9") {
+      // Network error -> use static fallback below
+    }
+
+    if (!backendAvailable) {
+      const localCfg = getLocalConfig();
+      const expectedCode = (localCfg.examCode || "IPA9SAS").trim().toUpperCase();
+      if (code === expectedCode || (!localCfg.examCode && code === "SASIPA9")) {
         state.sessionId = "local_" + Date.now();
+        state.durationSeconds = (localCfg.durationMinutes || 90) * 60;
+        state.remainingSeconds = state.durationSeconds;
+        state.maxViolations = localCfg.maxViolations || 3;
         verified = true;
       } else {
-        showLoginError("Kode masuk tidak valid atau server belum aktif.");
+        showLoginError("Kode masuk salah! Hubungi guru/pengawas ujian.");
         return;
       }
     }
 
     if (!verified) return;
 
-    // Load 40 questions
-    const qResp = await fetch("/api/questions");
-    if (!qResp.ok) throw new Error("Gagal memuat soal ujian.");
-    const qJson = await qResp.json();
-    state.questions = qJson.questions || [];
+    // Load 40 questions (from backend API or static fallback)
+    state.questions = await loadExamQuestions();
     if (state.questions.length === 0) throw new Error("Daftar soal kosong.");
 
     state.studentName = name;
@@ -570,23 +641,80 @@ async function submitExam(status) {
 
   let serverRes = null;
   try {
-    const resp = await fetch("/api/submit", {
+    const resp = await fetch("api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    if (resp.ok) {
+    const ct = resp.headers.get("content-type") || "";
+    if (resp.ok && ct.includes("application/json")) {
       serverRes = await resp.json();
     }
   } catch {
-    // Save fallback in localStorage
+    // Handled by static fallback below
+  }
+
+  if (!serverRes) {
+    const statusMap = {
+      SUBMITTED_MANUAL: "Selesai (Dikumpulkan Siswa)",
+      AUTO_SUBMIT_TIME: "Selesai Otomatis (Waktu Habis)",
+      AUTO_SUBMIT_VIOLATION: "Dihentikan Otomatis (3x Keluar Aplikasi)",
+    };
+    const keyList = state.staticKeyQuestions || [];
+    const totalQuestions = keyList.length || state.questions.length || 40;
+    let correctCount = 0;
+    let answeredCount = 0;
+    keyList.forEach((q) => {
+      const chosen = payload.answers[String(q.number)];
+      if (chosen) {
+        answeredCount += 1;
+        if (chosen === q.answer) correctCount += 1;
+      }
+    });
+    const score = totalQuestions ? Math.round((correctCount / totalQuestions) * 1000) / 10 : 0;
+    const localCfg = getLocalConfig();
+    const showScore = localCfg.showScoreToStudent !== false;
+
+    const localRecord = {
+      id: payload.sessionId,
+      name: payload.name,
+      className: payload.className,
+      code: payload.code,
+      startedAt: payload.startedAt,
+      finishedAt: payload.finishedAt,
+      durationSeconds: payload.durationSeconds,
+      totalQuestions,
+      answeredCount,
+      correctCount,
+      score,
+      status: payload.status,
+      statusLabel: statusMap[payload.status] || payload.status,
+      violationCount: payload.violationCount,
+      violations: payload.violations,
+      cameraWarnings: payload.cameraWarnings,
+      snapshots: (payload.snapshots || []).slice(0, 10),
+      answers: payload.answers,
+    };
+
     try {
       const existing = JSON.parse(localStorage.getItem(LOCAL_SUBMISSIONS_KEY) || "[]");
-      existing.unshift(payload);
-      localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(existing.slice(0, 20)));
+      const filtered = existing.filter((x) => x.id !== localRecord.id);
+      filtered.unshift(localRecord);
+      localStorage.setItem(LOCAL_SUBMISSIONS_KEY, JSON.stringify(filtered.slice(0, 25)));
     } catch {
-      // Ignore
+      // Ignore storage quota issues
     }
+
+    serverRes = {
+      ok: true,
+      id: localRecord.id,
+      statusLabel: localRecord.statusLabel,
+      answeredCount,
+      totalQuestions,
+      showScoreToStudent: showScore,
+      score: showScore ? score : null,
+      correctCount: showScore ? correctCount : null,
+    };
   }
 
   proctor.stopAll();

@@ -1,5 +1,9 @@
+const LOCAL_SUBMISSIONS_KEY = "sas_ipa9_local_submissions_v1";
+const LOCAL_CONFIG_KEY = "sas_ipa9_config_v1";
+
 let activePin = "";
 let cachedSubmissions = [];
+let isStaticMode = false;
 
 const els = {
   pinGate: document.getElementById("pin-gate"),
@@ -37,29 +41,71 @@ els.pinForm.addEventListener("submit", async (e) => {
   await loadDashboard();
 });
 
-async function loadDashboard() {
+function getLocalConfig() {
   try {
-    const resp = await fetch(`/api/submissions?pin=${encodeURIComponent(activePin)}`);
-    const data = await resp.json();
-    if (!resp.ok || !data.ok) {
-      els.pinError.textContent = data.message || "PIN pengawas salah.";
+    return JSON.parse(localStorage.getItem(LOCAL_CONFIG_KEY) || "{}") || {};
+  } catch {
+    return {};
+  }
+}
+
+function getLocalSubmissions() {
+  try {
+    return JSON.parse(localStorage.getItem(LOCAL_SUBMISSIONS_KEY) || "[]") || [];
+  } catch {
+    return [];
+  }
+}
+
+async function loadDashboard() {
+  let handledByServer = false;
+  try {
+    const resp = await fetch(`api/submissions?pin=${encodeURIComponent(activePin)}`);
+    const ct = resp.headers.get("content-type") || "";
+    if (ct.includes("application/json")) {
+      handledByServer = true;
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        els.pinError.textContent = data.message || "PIN pengawas salah.";
+        els.pinError.classList.remove("hidden");
+        return;
+      }
+
+      isStaticMode = false;
+      els.pinGate.classList.add("hidden");
+      els.dashboardContent.classList.remove("hidden");
+
+      const cfg = data.config || {};
+      els.cfgExamCode.value = cfg.examCode || "IPA9SAS";
+      els.cfgDuration.value = cfg.durationMinutes || 90;
+      els.cfgShowScore.value = String(cfg.showScoreToStudent !== false);
+
+      cachedSubmissions = data.submissions || [];
+      renderStatsAndTable(cachedSubmissions);
+      return;
+    }
+  } catch {
+    // Network error -> fallback to static mode
+  }
+
+  if (!handledByServer) {
+    const localCfg = getLocalConfig();
+    const expectedPin = localCfg.teacherPin || "GURU2026";
+    if (activePin !== expectedPin) {
+      els.pinError.textContent = "PIN pengawas salah.";
       els.pinError.classList.remove("hidden");
       return;
     }
 
+    isStaticMode = true;
     els.pinGate.classList.add("hidden");
     els.dashboardContent.classList.remove("hidden");
+    els.cfgExamCode.value = localCfg.examCode || "IPA9SAS";
+    els.cfgDuration.value = localCfg.durationMinutes || 90;
+    els.cfgShowScore.value = String(localCfg.showScoreToStudent !== false);
 
-    const cfg = data.config || {};
-    els.cfgExamCode.value = cfg.examCode || "IPA9SAS";
-    els.cfgDuration.value = cfg.durationMinutes || 90;
-    els.cfgShowScore.value = String(cfg.showScoreToStudent !== false);
-
-    cachedSubmissions = data.submissions || [];
+    cachedSubmissions = getLocalSubmissions();
     renderStatsAndTable(cachedSubmissions);
-  } catch (err) {
-    els.pinError.textContent = "Gagal terhubung ke server pengawas: " + err.message;
-    els.pinError.classList.remove("hidden");
   }
 }
 
@@ -139,13 +185,16 @@ function openDetailModal(sub) {
       ? `<p style="color:#64748b;">Tidak ada foto kamera tersimpan.</p>`
       : `<div class="res-snapshots-grid">` +
         sub.snapshots
-          .map(
-            (sn) => `
+          .map((sn) => {
+            const imgSrc = sn.dataUrl
+              ? sn.dataUrl
+              : `api/snapshot?pin=${encodeURIComponent(activePin)}&id=${encodeURIComponent(sub.id)}&file=${encodeURIComponent(sn.file)}`;
+            return `
           <div class="snap-thumb">
-            <img src="/api/snapshot?pin=${encodeURIComponent(activePin)}&id=${encodeURIComponent(sub.id)}&file=${encodeURIComponent(sn.file)}" alt="Bukti" />
+            <img src="${imgSrc}" alt="Bukti" />
             <div>${escapeHtml(sn.reason)}</div>
-          </div>`
-          )
+          </div>`;
+          })
           .join("") +
         `</div>`;
 
@@ -166,15 +215,23 @@ els.btnCloseDetail.addEventListener("click", () => {
 els.cfgForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   els.cfgMsg.innerHTML = "";
-  const resp = await fetch("/api/config", {
+  const newCfg = {
+    examCode: els.cfgExamCode.value.trim().toUpperCase(),
+    durationMinutes: Number(els.cfgDuration.value),
+    showScoreToStudent: els.cfgShowScore.value === "true",
+  };
+
+  if (isStaticMode) {
+    const merged = { ...getLocalConfig(), ...newCfg };
+    localStorage.setItem(LOCAL_CONFIG_KEY, JSON.stringify(merged));
+    els.cfgMsg.innerHTML = `<div class="alert-success">Pengaturan tersimpan di browser ini.</div>`;
+    return;
+  }
+
+  const resp = await fetch("api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      pin: activePin,
-      examCode: els.cfgExamCode.value.trim().toUpperCase(),
-      durationMinutes: Number(els.cfgDuration.value),
-      showScoreToStudent: els.cfgShowScore.value === "true",
-    }),
+    body: JSON.stringify({ pin: activePin, ...newCfg }),
   });
   const data = await resp.json();
   if (resp.ok && data.ok) {
@@ -187,12 +244,61 @@ els.cfgForm.addEventListener("submit", async (e) => {
 els.btnRefresh.addEventListener("click", loadDashboard);
 
 els.btnExportCsv.addEventListener("click", () => {
-  window.location.href = `/api/export-csv?pin=${encodeURIComponent(activePin)}`;
+  if (!isStaticMode) {
+    window.location.href = `api/export-csv?pin=${encodeURIComponent(activePin)}`;
+    return;
+  }
+
+  const headers = [
+    "No",
+    "Nama Siswa",
+    "Kelas",
+    "Kode Masuk",
+    "Nilai",
+    "Benar",
+    "Total Soal",
+    "Terjawab",
+    "Jumlah Pelanggaran",
+    "Peringatan Kamera",
+    "Status Pengumpulan",
+    "Waktu Mulai",
+    "Waktu Selesai",
+  ];
+  const rows = cachedSubmissions.map((s, i) => [
+    i + 1,
+    s.name || "",
+    s.className || "",
+    s.code || "",
+    s.score ?? 0,
+    s.correctCount ?? 0,
+    s.totalQuestions ?? 40,
+    s.answeredCount ?? 0,
+    s.violationCount ?? 0,
+    (s.cameraWarnings || []).length,
+    s.statusLabel || s.status || "",
+    s.startedAt || "",
+    s.finishedAt || "",
+  ]);
+  const csv = [headers, ...rows]
+    .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "rekap_sas_ipa_kelas9.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 });
 
 els.btnClearData.addEventListener("click", async () => {
   if (!confirm("Yakin ingin menghapus seluruh data pengumpulan dan foto kamera uji coba?")) return;
-  const resp = await fetch("/api/clear-submissions", {
+  if (isStaticMode) {
+    localStorage.removeItem(LOCAL_SUBMISSIONS_KEY);
+    await loadDashboard();
+    return;
+  }
+  const resp = await fetch("api/clear-submissions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ pin: activePin }),
