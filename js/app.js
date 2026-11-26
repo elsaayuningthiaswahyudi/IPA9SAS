@@ -747,7 +747,7 @@ async function submitExam(status) {
     if (sheetUrl) {
       const sheetPayload = {
         ...localRecord,
-        snapshots: (payload.snapshots || []).slice(0, 5),
+        snapshots: selectSnapshotsForSync(payload.snapshots, 10),
       };
       try {
         await fetch(sheetUrl, {
@@ -934,6 +934,24 @@ function bindEvents() {
       e.preventDefault();
     }
   });
+}
+
+function selectSnapshotsForSync(snapshots, limit = 10) {
+  const list = Array.isArray(snapshots) ? snapshots : [];
+  if (list.length <= limit) return list;
+
+  // Prioritize key evidence: start, violations, finish, then camera warnings/periodic
+  const priority = [];
+  const rest = [];
+  list.forEach((s) => {
+    const r = String(s.reason || "");
+    if (r.includes("Mulai") || r.includes("Pelanggaran") || r.includes("Selesai")) {
+      priority.push(s);
+    } else {
+      rest.push(s);
+    }
+  });
+  return [...priority, ...rest].slice(0, limit);
 }
 
 function escapeHtml(str) {

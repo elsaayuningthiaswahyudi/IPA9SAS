@@ -164,8 +164,10 @@ class ExamHandler(SimpleHTTPRequestHandler):
             try:
                 sep = "&" if "?" in sheet_url else "?"
                 query_params = {"action": action}
-                if action == "list":
+                if action in ("list", "snapshots"):
                     query_params["pin"] = pin
+                if qs.get("id"):
+                    query_params["id"] = qs["id"][0]
                 target_url = f"{sheet_url}{sep}{urlencode(query_params)}"
                 req = urllib.request.Request(target_url, headers={"User-Agent": "SAS-IPA-Proxy/1.0"})
                 with urllib.request.urlopen(req, timeout=15) as resp:
@@ -410,7 +412,7 @@ class ExamHandler(SimpleHTTPRequestHandler):
             spreadsheet_url = (cfg.get("spreadsheetUrl") or "").strip()
             if spreadsheet_url:
                 sheet_payload = dict(record)
-                sheet_payload["snapshots"] = snapshots[:5]
+                sheet_payload["snapshots"] = snapshots[:10]
                 threading.Thread(
                     target=forward_to_spreadsheet,
                     args=(spreadsheet_url, sheet_payload),

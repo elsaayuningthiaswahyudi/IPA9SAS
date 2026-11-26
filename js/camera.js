@@ -73,8 +73,8 @@ export class CameraProctor {
   captureSnapshot(videoEl, reason = "Pemantauan Berkala") {
     if (!this.isActive() || !videoEl || videoEl.videoWidth === 0) return null;
 
-    const w = 360;
-    const h = Math.round((videoEl.videoHeight / videoEl.videoWidth) * w) || 270;
+    const w = 320;
+    const h = Math.round((videoEl.videoHeight / videoEl.videoWidth) * w) || 240;
     this.canvas.width = w;
     this.canvas.height = h;
     this.ctx.drawImage(videoEl, 0, 0, w, h);
@@ -85,9 +85,9 @@ export class CameraProctor {
     this.ctx.fillRect(0, h - 24, w, 24);
     this.ctx.fillStyle = "#ffffff";
     this.ctx.font = "11px sans-serif";
-    this.ctx.fillText(`${ts} • ${reason}`.slice(0, 52), 8, h - 8);
+    this.ctx.fillText(`${ts} • ${reason}`.slice(0, 48), 8, h - 8);
 
-    const dataUrl = this.canvas.toDataURL("image/jpeg", 0.68);
+    const dataUrl = this.canvas.toDataURL("image/jpeg", 0.62);
     const snap = {
       dataUrl,
       reason,

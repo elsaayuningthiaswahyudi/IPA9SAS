@@ -56,7 +56,7 @@ Agar **semua perangkat siswa (HP/laptop berbeda)** otomatis tahu alamat Spreadsh
 
 ## Langkah 5: Cek Hasil di Spreadsheet & Portal Pengawas
 - Setiap kali siswa mengklik **Kumpulkan Jawaban**, waktu habis, atau **terkena 3x pelanggaran (auto-submit)**:
-  - Satu baris data siswa langsung masuk ke sheet **`Rekap_SAS_IPA9`** lengkap dengan **Nilai**, **Log Pelanggaran**, **Link Folder Foto Kamera di Google Drive** (`Bukti_Kamera_SAS_IPA9`), dan seluruh **40 jawaban (`J1` s.d. `J40`)**.
+  - Satu baris data siswa langsung masuk ke sheet **`Rekap_SAS_IPA9`** lengkap dengan **Nilai**, **Log Pelanggaran**, dan seluruh **40 jawaban (`J1` s.d. `J40`)**, sedangkan bukti foto kamera langsung tampil di galeri **Tangkapan Kamera Pengawas** pada **Portal Pengawas** (tanpa perlu Google Drive).
 - Ketika Anda membuka **Portal Pengawas (`pengawas.html`)** dan klik **Muat Ulang**, seluruh data peserta dari Google Spreadsheet otomatis ditarik dan ditampilkan dalam satu tabel terpusat!
 
 > **Penting saat memperbarui kode Apps Script di kemudian hari:** Jika Anda mengubah isi `Code.gs`, pilih **Terapkan → Kelola deployment → Edit (ikon pensil) → Versi baru (New version)** agar URL `/exec` tidak berubah.

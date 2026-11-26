@@ -127,17 +127,22 @@ function jsonpRequest(url, timeoutMs = 10000) {
   });
 }
 
-async function callSheetGet(sheetUrl, action, pin = "") {
+async function callSheetGet(sheetUrl, action, pin = "", extraParams = {}) {
   const cleanUrl = (sheetUrl || "").trim();
   if (!cleanUrl) throw new Error("URL Spreadsheet kosong.");
   if (!cleanUrl.startsWith("https://script.google.com/")) {
     throw new Error("URL harus diawali https://script.google.com/ dan berakhiran /exec.");
   }
 
+  const extraQuery = Object.entries(extraParams)
+    .filter(([, v]) => v !== undefined && v !== null && String(v) !== "")
+    .map(([k, v]) => `&${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+    .join("");
+
   // 1. If local server.py is active, use server-side proxy (immune to browser CORS/multi-login)
   if (!isStaticMode) {
     try {
-      const proxyUrl = `api/sheet-proxy?url=${encodeURIComponent(cleanUrl)}&action=${encodeURIComponent(action)}&pin=${encodeURIComponent(pin)}`;
+      const proxyUrl = `api/sheet-proxy?url=${encodeURIComponent(cleanUrl)}&action=${encodeURIComponent(action)}&pin=${encodeURIComponent(pin)}${extraQuery}`;
       const resp = await fetch(proxyUrl);
       const data = await resp.json();
       if (!resp.ok || !data.ok) {
@@ -151,10 +156,11 @@ async function callSheetGet(sheetUrl, action, pin = "") {
 
   // 2. Direct fetch (static hosting / GitHub Pages)
   const sep = cleanUrl.includes("?") ? "&" : "?";
-  const target =
-    action === "list"
-      ? `${cleanUrl}${sep}action=list&pin=${encodeURIComponent(pin)}`
+  const baseTarget =
+    action === "list" || action === "snapshots"
+      ? `${cleanUrl}${sep}action=${encodeURIComponent(action)}&pin=${encodeURIComponent(pin)}`
       : `${cleanUrl}${sep}action=${encodeURIComponent(action)}`;
+  const target = `${baseTarget}${extraQuery}`;
 
   try {
     const resp = await fetch(target);
@@ -351,7 +357,26 @@ function renderStatsAndTable(subs) {
   });
 }
 
-function openDetailModal(sub) {
+function renderSnapshotsGrid(snapshots, subId) {
+  return (
+    `<div class="res-snapshots-grid">` +
+    snapshots
+      .map((sn) => {
+        const imgSrc = sn.dataUrl
+          ? sn.dataUrl
+          : `api/snapshot?pin=${encodeURIComponent(activePin)}&id=${encodeURIComponent(subId)}&file=${encodeURIComponent(sn.file)}`;
+        return `
+          <div class="snap-thumb">
+            <img src="${imgSrc}" alt="Bukti" />
+            <div>${escapeHtml(sn.reason)}</div>
+          </div>`;
+      })
+      .join("") +
+    `</div>`
+  );
+}
+
+async function openDetailModal(sub) {
   els.detailTitle.textContent = `Jawaban & Pengawasan — ${sub.name} (${sub.className})`;
 
   // 40 Answers grid
@@ -395,28 +420,16 @@ function openDetailModal(sub) {
     camWarnHtml = `<div class="log-item warn">Kamera: ${escapeHtml(sub.cameraSummaryText)}</div>`;
   }
 
-  let snapsHtml = "";
-  if (Array.isArray(sub.snapshots) && sub.snapshots.length > 0) {
-    snapsHtml =
-      `<div class="res-snapshots-grid">` +
-      sub.snapshots
-        .map((sn) => {
-          const imgSrc = sn.dataUrl
-            ? sn.dataUrl
-            : `api/snapshot?pin=${encodeURIComponent(activePin)}&id=${encodeURIComponent(sub.id)}&file=${encodeURIComponent(sn.file)}`;
-          return `
-            <div class="snap-thumb">
-              <img src="${imgSrc}" alt="Bukti" />
-              <div>${escapeHtml(sn.reason)}</div>
-            </div>`;
-        })
-        .join("") +
-      `</div>`;
-  } else if (sub.driveFolderUrl) {
-    snapsHtml = `<p><a href="${escapeHtml(sub.driveFolderUrl)}" target="_blank" rel="noopener" class="btn-outline-sm">📁 Buka Folder Foto Kamera di Google Drive</a></p>`;
-  } else {
-    snapsHtml = `<p style="color:#64748b;">Tidak ada foto kamera tersimpan di perangkat ini.</p>`;
-  }
+  const hasLocalSnaps = Array.isArray(sub.snapshots) && sub.snapshots.length > 0;
+  const activeSheetUrl = (els.cfgSpreadsheetUrl.value || "").trim();
+  const canFetchRemoteSnaps =
+    !hasLocalSnaps && activeSheetUrl && ((sub.snapshotCount || 0) > 0 || String(sub.source || "").includes("spreadsheet"));
+
+  const snapsHtml = hasLocalSnaps
+    ? renderSnapshotsGrid(sub.snapshots, sub.id)
+    : canFetchRemoteSnaps
+    ? `<p class="hint">Memuat tangkapan kamera pengawas...</p>`
+    : `<p style="color:#64748b;">Tidak ada foto kamera tersimpan.</p>`;
 
   els.detailBody.innerHTML = `
     <p><strong>Status:</strong> ${escapeHtml(sub.statusLabel || sub.status)} | <strong>Nilai:</strong> ${sub.score} (${sub.correctCount}/40 benar)</p>
@@ -425,9 +438,27 @@ function openDetailModal(sub) {
     <h4 class="mt-8">Log Pelanggaran & Peringatan Kamera</h4>
     <div class="res-log-list">${violationsHtml}${camWarnHtml}</div>
     <h4>Tangkapan Kamera Pengawas</h4>
-    ${snapsHtml}
+    <div id="detail-snapshots-container">${snapsHtml}</div>
   `;
   els.detailModal.classList.remove("hidden");
+
+  if (canFetchRemoteSnaps) {
+    const container = document.getElementById("detail-snapshots-container");
+    try {
+      const res = await callSheetGet(activeSheetUrl, "snapshots", activePin, { id: sub.id });
+      const fetched = Array.isArray(res.snapshots) ? res.snapshots : [];
+      sub.snapshots = fetched;
+      if (container) {
+        container.innerHTML = fetched.length > 0
+          ? renderSnapshotsGrid(fetched, sub.id)
+          : `<p style="color:#64748b;">Tidak ada foto kamera tersimpan untuk peserta ini.</p>`;
+      }
+    } catch {
+      if (container) {
+        container.innerHTML = `<p style="color:#64748b;">Gagal memuat tangkapan kamera dari server sinkronisasi.</p>`;
+      }
+    }
+  }
 }
 
 els.btnCloseDetail.addEventListener("click", () => {
